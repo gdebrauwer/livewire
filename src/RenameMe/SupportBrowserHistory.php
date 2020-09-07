@@ -79,7 +79,7 @@ class SupportBrowserHistory
 
     protected function buildPathFromReferrer($referrer, $queryParams)
     {
-        return Str::before($referrer, '?').$this->stringifyQueryParams($queryParams);
+        return Str::before($referrer, '?').$this->stringifyQueryParams($queryParams).$this->getFragment();
     }
 
     protected function buildPathFromRoute($component, $route, $queryString)
@@ -92,7 +92,7 @@ class SupportBrowserHistory
             ),
         );
 
-        return app(UrlGenerator::class)->toRoute($route, $boundParameters + $queryString->toArray(), true);
+        return app(UrlGenerator::class)->toRoute($route, $boundParameters + $queryString->toArray(), true).$this->getFragment();
     }
 
     protected function mergeComponentPropertiesWithExistingQueryParams($component)
@@ -136,5 +136,13 @@ class SupportBrowserHistory
     protected function stringifyQueryParams($queryParams)
     {
         return $queryParams->isEmpty() ? '' : '?'.http_build_query($queryParams->toArray());
+    }
+
+    protected function getFragment()
+    {
+        $url = Livewire::isLivewireRequest() ? request()->header('Referrer') : request()->url();
+        $fragment = parse_url($url, PHP_URL_FRAGMENT);
+
+        return $fragment ? '#'.$fragment : '';
     }
 }
