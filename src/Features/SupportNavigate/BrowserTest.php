@@ -198,6 +198,70 @@ class BrowserTest extends \Tests\BrowserTestCase
     }
 
     /** @test */
+    public function back_button_works_with_livewire_component_inside_persist()
+    {
+        Livewire::component('persisted-component', PersistedComponent::class);
+
+        $this->registerComponentTestRoutes([
+            '/second' => new class extends Component {
+                public function render(){ return <<<'HTML'
+                    <div>
+                        <div>
+                            On second page
+                        </div>
+
+                        @persist('header')
+                            <livewire:persisted-component/>
+                        @endpersist
+                    </div>
+                HTML; }
+            },
+        ]);
+
+        Livewire::visit(new class extends Component {
+            public function render(){
+                return <<<'HTML'
+                    <div>
+                        <div>
+                            On first page
+                        </div>
+
+                        @persist('header')
+                            <livewire:persisted-component/>
+                        @endpersist
+
+                        <a href="/second" wire:navigate dusk="link">Go to second page</a>
+                    </div>
+                HTML;
+            }
+        })
+        ->assertSeeIn('@persisted-output', '0')
+        ->waitForLivewire()->click('@persisted-button')
+        ->assertSeeIn('@persisted-output', '1')
+        ->click('@link')
+        ->waitForText('On second page')
+        ->assertSeeIn('@persisted-output', '1')
+        ->waitForLivewire()->click('@persisted-button')
+        ->assertSeeIn('@persisted-output', '2')
+        ->assertConsoleLogMissingWarning('Uncaught')
+        ->assertScript('Livewire.all().length', 2)
+        ->back()
+        ->assertConsoleLogMissingWarning('Uncaught')
+        ->assertScript('Livewire.all().length', 2)
+        ->assertSeeIn('@persisted-output', '2')
+        ->waitForLivewire()->click('@persisted-button')
+        ->assertSeeIn('@persisted-output', '3')
+        ->assertConsoleLogMissingWarning('Uncaught')
+        ->assertScript('Livewire.all().length', 2)
+        ->forward()
+        ->assertConsoleLogMissingWarning('Uncaught')
+        ->assertScript('Livewire.all().length', 2)
+        ->assertSeeIn('@persisted-output', '3')
+        ->waitForLivewire()->click('@persisted-button')
+        ->assertSeeIn('@persisted-output', '4');
+    }
+
+    /** @test */
     public function can_configure_progress_bar()
     {
         $this->browse(function ($browser) {
@@ -992,6 +1056,26 @@ class PageWithLinkAway extends Component
             <a wire:navigate dusk="link.away" href="/page-without-livewire-component">
                 Link to page without Livewire component
             </a>
+        </div>
+        HTML;
+    }
+}
+
+class PersistedComponent extends Component
+{
+    public int $count = 0;
+
+    public function increment()
+    {
+        $this->count++;
+    }
+
+    public function render()
+    {
+        return <<<'HTML'
+        <div>
+            <button type="button" wire:click="increment" dusk="persisted-button">Increment</button>
+            <button dusk="persisted-output">{{ $count }}</button>
         </div>
         HTML;
     }
